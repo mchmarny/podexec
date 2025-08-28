@@ -2,5 +2,4 @@ resources:
   - namespace.yaml
   - serviceaccount.yaml
   - rbac.yaml
-  - configmap.yaml
   - deployment.yaml

@@ -1,13 +1,10 @@
-APP_NAME           := node-role-controller
-APP_VERSION 	   := v0.5.0
+APP_NAME           := podexec
+APP_VERSION 	   := v0.1.0
 YAML_FILES         := $(shell find . -type f \( -iname "*.yml" -o -iname "*.yaml" \))
 NODE_IMAGE         ?= kindest/node:v1.33.1
-
 CONFIG_FILE        ?= kind.yaml
-
-# Go 
-GO111MODULE     := on
-CGO_ENABLED	    := 0
+GO111MODULE        := on
+CGO_ENABLED	       := 0
 
 # Environment for Go commands
 GO_ENV := \

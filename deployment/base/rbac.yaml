@@ -1,21 +1,39 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
-  name: node-role-labeler
+  name: podexec
+  namespace: podexec
 rules:
+  # Read pods you’ll act on
   - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch", "patch", "update"]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Exec subresource: POST => "create"
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+
+  # Optional: logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+
+  # Delete pods (if your app needs to restart them)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: node-role-labeler
+  name: podexec
+  namespace: podexec
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: node-role-labeler
+  kind: Role
+  name: podexec
 subjects:
   - kind: ServiceAccount
-    name: node-role-controller
-    namespace: node-labeler
+    name: podexec
+    namespace: podexec

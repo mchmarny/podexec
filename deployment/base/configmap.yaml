@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: node-role-controller-config
-  namespace: node-labeler
-data:
-  roleLabel: "nodeGroup"
-  roleReplace: "false"
-  logLevel: "info"

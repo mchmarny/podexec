@@ -5,7 +5,7 @@ metadata:
 spec:
   mode: enforce
   images:
-    - glob: ghcr.io/mchmarny/node-role-controller*
+    - glob: ghcr.io/mchmarny/podexec*
   authorities:
     - keyless:
         url: https://fulcio.sigstore.dev

@@ -21,13 +21,13 @@ kubectl get nodes -l '!node-role.kubernetes.io/control-plane' -o name | \
 kubectl apply -k deployment/overlays/dev
 
 # Print out the image that was deployed 
-IMAGE=$(kubectl get deployment/node-role-controller \
-  -n node-labeler \
+IMAGE=$(kubectl get deployment/podexec \
+  -n podexec \
   -o jsonpath='{.spec.template.spec.containers[0].image}')
 echo "Deployed image: $IMAGE"
 
 # Wait for deployment pod to be running
-kubectl rollout status deployment/node-role-controller -n node-labeler --timeout=120s
+kubectl rollout status deployment/podexec -n podexec --timeout=120s
 
 # Wait for controller to update node role
 sleep 3
@@ -59,14 +59,14 @@ if [[ -z "$test_nodes" ]]; then
 fi
 
 # Update configmap to disable replace behavior
-kubectl patch cm node-role-controller-config -n node-labeler --type='json' \
+kubectl patch cm podexec-config -n podexec --type='json' \
   -p='[{"op": "replace", "path": "/data/roleReplace", "value": "false"}]'  
 
 # Restart the deployment to apply config changes
-kubectl rollout restart deployment/node-role-controller -n node-labeler
+kubectl rollout restart deployment/podexec -n podexec
 
 # Wait for deployment pod to be running
-kubectl rollout status deployment/node-role-controller -n node-labeler --timeout=120s
+kubectl rollout status deployment/podexec -n podexec --timeout=120s
 
 # Wait for controller to update node role
 sleep 3

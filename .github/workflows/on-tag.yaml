@@ -11,7 +11,7 @@ jobs:
 
   release:
     env:
-      IMAGE_NAME: node-role-controller
+      IMAGE_NAME: podexec
       GO_VERSION: '1.25.0'
       COSIGN_VERSION: v2.5.0
       KIND_VERSION: '0.29.0'

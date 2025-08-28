@@ -1,41 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: node-role-controller
-  namespace: node-labeler
+  name: podexec
+  namespace: podexec
   labels:
-    app: node-role-controller
+    app: podexec
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: node-role-controller
+      app: podexec
   template:
     metadata:
       labels:
-        app: node-role-controller
+        app: podexec
     spec:
-      serviceAccountName: node-role-controller
+      serviceAccountName: podexec
       terminationGracePeriodSeconds: 10
       containers:
-        - name: node-role-controller
-          image: ghcr.io/mchmarny/node-role-controller:latest
-          env:
-            - name: ROLE_LABEL
-              valueFrom:
-                configMapKeyRef:
-                  name: node-role-controller-config
-                  key: roleLabel
-            - name: ROLE_LABEL_REPLACE
-              valueFrom:
-                configMapKeyRef:
-                  name: node-role-controller-config
-                  key: roleReplace
-            - name: LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: node-role-controller-config
-                  key: logLevel
+        - name: podexec
+          image: ghcr.io/mchmarny/podexec:latest
           resources:
             requests:
               cpu: 50m
@@ -48,21 +32,4 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-          ports:
-            - containerPort: 8080
-              name: metrics
-          livenessProbe:
-            httpGet:
-              path: /metrics
-              port: metrics
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            timeoutSeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /metrics
-              port: metrics
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 5
       restartPolicy: Always
