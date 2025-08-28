@@ -1,0 +1,11 @@
+defaultBaseImage: cgr.dev/chainguard/static:latest
+
+# Platforms to build for (optional, overrides --platform)
+platforms:
+  - linux/amd64
+  - linux/arm64
+
+# Environment variables to set at build time
+env:
+  CGO_ENABLED: "0"
+  GOFLAGS: "-mod=vendor"

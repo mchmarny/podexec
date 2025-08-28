@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Assume current k8s context
+WORKER_NODES=${1:-'2'}
+
+# Check for the required tools
+if ! command -v kubectl &>/dev/null; then
+  echo "kubectl not found. Install: https://kubernetes.io/docs/tasks/tools/"
+  exit 1
+fi
+
+# Wait for nodes to be ready
+kubectl wait --for=condition=Ready node --all --timeout=120s
+
+# Add labels to all nodes without node rol 
+kubectl get nodes -l '!node-role.kubernetes.io/control-plane' -o name | \
+  xargs -I {} kubectl label {} nodeGroup=worker --overwrite
+
+# Apply dev deployment
+kubectl apply -k deployment/overlays/dev
+
+# Print out the image that was deployed 
+IMAGE=$(kubectl get deployment/node-role-controller \
+  -n node-labeler \
+  -o jsonpath='{.spec.template.spec.containers[0].image}')
+echo "Deployed image: $IMAGE"
+
+# Wait for deployment pod to be running
+kubectl rollout status deployment/node-role-controller -n node-labeler --timeout=120s
+
+# Wait for controller to update node role
+sleep 3
+
+# Get all nodes based on role
+worker_nodes=$(kubectl get nodes -l 'node-role.kubernetes.io/worker' -o name)
+
+# Check if we have the expected number of worker nodes
+if [[ $(echo "$worker_nodes" | wc -l) -lt $WORKER_NODES ]]; then
+  echo "Expected at least $WORKER_NODES worker nodes, found:"
+  echo "$worker_nodes"
+  exit 1
+fi
+
+# Edit nodeGroup label on first worker node to 'test'
+first_node=$(echo $worker_nodes | awk '{print $1}')
+kubectl label "$first_node" nodeGroup=test --overwrite
+
+# Wait for controller to update node role
+sleep 5
+
+# Check that node role label changed to 'test'
+test_nodes=$(kubectl get nodes -l 'node-role.kubernetes.io/test' -o name)
+
+# Check if the first node has the 'test' role label
+if [[ -z "$test_nodes" ]]; then
+  echo "No nodes found with role 'test'."   
+  exit 1
+fi
+
+# Update configmap to disable replace behavior
+kubectl patch cm node-role-controller-config -n node-labeler --type='json' \
+  -p='[{"op": "replace", "path": "/data/roleReplace", "value": "false"}]'  
+
+# Restart the deployment to apply config changes
+kubectl rollout restart deployment/node-role-controller -n node-labeler
+
+# Wait for deployment pod to be running
+kubectl rollout status deployment/node-role-controller -n node-labeler --timeout=120s
+
+# Wait for controller to update node role
+sleep 3
+
+# Update node role label to 'builder'
+kubectl label "$first_node" nodeGroup=builder --overwrite
+
+# Check for presence of both 'test' and 'builder' roles
+test_nodes=$(kubectl get nodes -l 'node-role.kubernetes.io/test' -o name)
+builder_nodes=$(kubectl get nodes -l 'node-role.kubernetes.io/builder' -o name) 
+if [[ -z "$test_nodes" || -z "$builder_nodes" ]]; then
+  echo "Expected nodes with roles 'test' and 'builder', but found:"
+  echo "Test nodes: $test_nodes"
+  echo "Builder nodes: $builder_nodes"
+  exit 1
+fi
+
+echo "Integration test passed."

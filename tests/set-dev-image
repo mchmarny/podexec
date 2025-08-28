@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$DIR/.." && pwd)"
+
+# Assume current k8s context
+IMAGE=$1
+PATCH_FILE=$2
+
+if [[ -z "$IMAGE" ]]; then
+  echo "Usage: $0 <image>"
+  exit 1
+fi
+
+if [[ -z "$PATCH_FILE" ]]; then
+  PATCH_FILE="${ROOT}/deployment/overlays/dev/patch-deployment.yaml"
+fi
+
+if [[ ! -f "$PATCH_FILE" ]]; then
+  echo "Patch file $PATCH_FILE does not exist."
+  exit 1
+fi
+
+echo "Setting image in $PATCH_FILE to $IMAGE"
+
+# Update the image line using sed (matches any line containing 'image:')
+sed -i "s|image: .*|image: $IMAGE|" "$PATCH_FILE"

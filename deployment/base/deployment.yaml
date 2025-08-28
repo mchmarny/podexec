@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-role-controller
+  namespace: node-labeler
+  labels:
+    app: node-role-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-role-controller
+  template:
+    metadata:
+      labels:
+        app: node-role-controller
+    spec:
+      serviceAccountName: node-role-controller
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: node-role-controller
+          image: ghcr.io/mchmarny/node-role-controller:latest
+          env:
+            - name: ROLE_LABEL
+              valueFrom:
+                configMapKeyRef:
+                  name: node-role-controller-config
+                  key: roleLabel
+            - name: ROLE_LABEL_REPLACE
+              valueFrom:
+                configMapKeyRef:
+                  name: node-role-controller-config
+                  key: roleReplace
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: node-role-controller-config
+                  key: logLevel
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+              name: metrics
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      restartPolicy: Always

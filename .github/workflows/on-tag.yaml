@@ -1,0 +1,97 @@
+name: on_tag
+on:
+  push:
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+'  # Only build tag with semantic versioning format
+
+permissions:
+  contents: read
+
+jobs:
+
+  release:
+    env:
+      IMAGE_NAME: node-role-controller
+      GO_VERSION: '1.25.0'
+      COSIGN_VERSION: v2.5.0
+      KIND_VERSION: '0.29.0'
+      K8S_VERSION: '1.33.x'
+      GO_LINTER_VERSION: 'v2.4.0'
+      ERR_VULNERABILITY_SEV: 'CRITICAL,HIGH,MEDIUM'
+      DEPLOYMENT_PATCH_FILE: deployment/overlays/dev/patch-deployment.yaml
+      WORKER_NODE_COUNT: '2'
+    outputs:
+      image-uri: ${{ steps.build.outputs.image-uri }}
+      image-name: ${{ steps.build.outputs.image-name }}
+      image-digest: ${{ steps.build.outputs.image-digest }}
+      cosign-version: ${{ env.COSIGN_VERSION }}
+      source-uri: "github.com/${{ github.repository }}"
+      source-tag: ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+      packages: write
+    steps:
+
+    # build the image
+    - uses: mchmarny/common/go-build@main
+      id: build
+      with:
+        image-uri: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+        go-version: ${{ env.GO_VERSION }}
+        release-version: ${{ github.ref_name }}
+        registry-username: ${{ github.actor }}
+        registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+    # runt integration tests with kind
+    - uses: chainguard-dev/actions/setup-kind@1df2b5598adffbfe72a3abe9243d73e338bbb006  # v1.4.10
+      with:
+        kind-version: ${{ env.KIND_VERSION }}
+        k8s-version: ${{ env.K8S_VERSION }}
+        kind-worker-count: "${{ env.WORKER_NODE_COUNT }}"
+    - run: tests/set-dev-image ${{ steps.build.outputs.image-uri }} ${{ env.DEPLOYMENT_PATCH_FILE }}
+    - run: tests/integration "${{ env.WORKER_NODE_COUNT }}"
+
+    # scan the image for vulnerabilities
+    - name: Scan Image
+      uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4  # 0.32.0
+      with:
+        scan-type: image
+        severity: ${{ env.ERR_VULNERABILITY_SEV }}
+        image-ref: ${{ steps.build.outputs.image-uri }}
+        github-pat: ${{ secrets.GITHUB_TOKEN }}
+        format: sarif
+        output: trivy-results.sarif
+        hide-progress: true
+        timeout: "10m"
+        exit-code: "1"
+
+  provenance:
+    needs: [release]
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0  # Must use tagged version
+    with:
+      image: ${{ needs.release.outputs.image-name }}
+      digest: ${{ needs.release.outputs.image-digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  verification:
+    needs: [release, provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: slsa-framework/slsa-verifier/actions/installer@ea584f4502babc6f60d9bc799dbbb13c1caa9ee6  # v2.7.1
+    - name: Verify SLSA Provenance (slsa-verifier)
+      shell: bash
+      run: |-
+        slsa-verifier verify-image ${{ needs.release.outputs.image-uri }} \
+          --source-uri "${{ needs.release.outputs.source-uri }}" \
+          --source-tag "${{ needs.release.outputs.source-tag }}"

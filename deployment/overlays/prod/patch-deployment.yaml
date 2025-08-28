@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-role-controller
+  namespace: node-labeler
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: node-role-controller
+          image: ghcr.io/mchmarny/node-role-controller:v0.5.0@sha256:345638126a65cff794a59c620badcd02cdbc100d45f7745b4b42e32a803ff645
