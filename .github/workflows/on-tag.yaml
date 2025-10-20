@@ -46,7 +46,7 @@ jobs:
         registry-password: ${{ secrets.GITHUB_TOKEN }}
 
     # runt integration tests with kind
-    - uses: chainguard-dev/actions/setup-kind@be7b31a01af8ce7228fe901326f1d223fb788e14  # v1.4.12
+    - uses: chainguard-dev/actions/setup-kind@1b32103f5aa389c31ab0be75a8edc38d7e4750d8  # v1.5.7
       with:
         kind-version: ${{ env.KIND_VERSION }}
         k8s-version: ${{ env.K8S_VERSION }}
